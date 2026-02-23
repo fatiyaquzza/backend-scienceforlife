@@ -21,12 +21,12 @@ async function seedAdmin() {
 
   try {
     connection = await mysql.createConnection({
-      host: process.env.DB_HOST || "localhost",
+      host: process.env.DB_HOST,
       port: 3306,
-      family: 4, // ✅ paksa IPv4 (hindari ::1)
-      user: process.env.DB_USER || "root",
-      password: process.env.DB_PASSWORD || "",
-      database: process.env.DB_NAME || "science_for_life",
+      user: process.env.DB_USER,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_NAME,
+      family: 4,
     });
 
     const hashedPassword = bcrypt.hashSync(ADMIN_PASSWORD, 10);
