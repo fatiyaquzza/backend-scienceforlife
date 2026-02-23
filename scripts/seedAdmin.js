@@ -6,9 +6,11 @@
  * Jalankan dari folder backend: node scripts/seedAdmin.js
  */
 
-require("dotenv").config({
-  path: require("path").join(__dirname, "..", ".env"),
-});
+if (process.env.NODE_ENV !== "production") {
+  require("dotenv").config({
+    path: require("path").join(__dirname, "..", ".env"),
+  });
+}
 const bcrypt = require("bcryptjs");
 const mysql = require("mysql2/promise");
 
