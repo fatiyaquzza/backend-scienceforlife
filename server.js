@@ -28,7 +28,7 @@ app.use("/api/contact", require("./routes/contactRoutes"));
 
 // Health check
 app.get("/api/health", (req, res) => {
-  res.json({ message: "Science For Life API is running", status: "OK" });
+  res.json({ message: "Ilmana API is running", status: "OK" });
 });
 
 app.get("/__envcheck", (req, res) => {

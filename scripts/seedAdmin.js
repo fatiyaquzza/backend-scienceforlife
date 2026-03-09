@@ -14,9 +14,9 @@ if (process.env.NODE_ENV !== "production") {
 const bcrypt = require("bcryptjs");
 const mysql = require("mysql2/promise");
 
-const ADMIN_EMAIL = "adminSFL@gmail.com";
+const ADMIN_EMAIL = "ilmanainitiative@gmail.com";
 const ADMIN_PASSWORD = "admin123";
-const ADMIN_NAME = "Admin Science For Life";
+const ADMIN_NAME = "Admin Ilmana";
 
 async function seedAdmin() {
   let connection;
