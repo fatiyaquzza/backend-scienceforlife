@@ -25,6 +25,7 @@ app.use("/api/progress", require("./routes/userProgressRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/ai", require("./routes/aiChatRoutes"));
 app.use("/api/contact", require("./routes/contactRoutes"));
+app.use("/api", require("./routes/uploadRoutes"));
 
 // Health check
 app.get("/api/health", (req, res) => {

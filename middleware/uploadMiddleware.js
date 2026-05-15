@@ -5,7 +5,8 @@ const fs = require('fs');
 // Ensure upload directories exist
 const uploadDirs = {
   modules: 'uploads/modules',
-  materials: 'uploads/materials'
+  materials: 'uploads/materials',
+  images: 'uploads/images',
 };
 
 Object.values(uploadDirs).forEach(dir => {
@@ -74,7 +75,24 @@ const uploadMaterialFile = multer({
   fileFilter: pdfFilter
 });
 
+const contentImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadDirs.images);
+  },
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'content-' + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const uploadContentImageMulter = multer({
+  storage: contentImageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFilter,
+});
+
 module.exports = {
   uploadModuleImage: uploadModuleImage.single('image'),
-  uploadMaterialFile: uploadMaterialFile.single('file')
+  uploadMaterialFile: uploadMaterialFile.single('file'),
+  uploadContentImage: uploadContentImageMulter.single('image'),
 };
