@@ -5,12 +5,7 @@ if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
 
-const { cleanupExpiredRefreshTokens } = require("./utils/tokenService");
-
 const app = express();
-
-cleanupExpiredRefreshTokens();
-setInterval(cleanupExpiredRefreshTokens, 60 * 60 * 1000);
 
 // Middleware
 app.use(cors());

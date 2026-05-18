@@ -1,19 +1,6 @@
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
-const {
-  issueTokenPair,
-  rotateRefreshToken,
-  revokeRefreshToken,
-} = require("../utils/tokenService");
-
-const toPublicUser = (user) => ({
-  id: user.id,
-  name: user.name,
-  email: user.email,
-  job: user.job,
-  address: user.address,
-  role: user.role,
-});
 
 const register = async (req, res) => {
   try {
@@ -48,22 +35,23 @@ const register = async (req, res) => {
       [name, email, hashedPassword, job, address],
     );
 
-    const user = {
-      id: result.insertId,
-      name,
-      email,
-      job,
-      address,
-      role: "user",
-    };
-
-    const tokens = await issueTokenPair(user);
+    const token = jwt.sign(
+      { id: result.insertId, email, role: "user" },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" },
+    );
 
     res.status(201).json({
       message: "User registered successfully",
-      token: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: toPublicUser(user),
+      token,
+      user: {
+        id: result.insertId,
+        name,
+        email,
+        job,
+        address,
+        role: "user",
+      },
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -95,50 +83,24 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const tokens = await issueTokenPair(user);
+    const token = jwt.sign(
+      { id: user.id, email: user.email, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" },
+    );
 
     res.json({
       message: "Login successful",
-      token: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-      user: toPublicUser(user),
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        job: user.job,
+        address: user.address,
+        role: user.role,
+      },
     });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
-const refresh = async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-
-    if (!refreshToken) {
-      return res.status(400).json({ message: "Refresh token is required" });
-    }
-
-    const tokens = await rotateRefreshToken(refreshToken);
-
-    if (!tokens) {
-      return res.status(401).json({
-        message: "Sesi tidak valid atau sudah berakhir. Silakan login kembali.",
-        code: "REFRESH_INVALID",
-      });
-    }
-
-    res.json({
-      token: tokens.accessToken,
-      refreshToken: tokens.refreshToken,
-    });
-  } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
-  }
-};
-
-const logout = async (req, res) => {
-  try {
-    const { refreshToken } = req.body;
-    await revokeRefreshToken(refreshToken);
-    res.json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -161,4 +123,4 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { register, login, refresh, logout, getMe };
+module.exports = { register, login, getMe };
