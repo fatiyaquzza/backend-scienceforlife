@@ -1,18 +1,29 @@
 const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
+const {
+  issueTokenPair,
+  rotateRefreshToken,
+  revokeRefreshToken,
+} = require("../utils/tokenService");
+
+const toPublicUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  job: user.job,
+  address: user.address,
+  role: user.role,
+});
 
 const register = async (req, res) => {
   try {
     const { name, email, password, job, address } = req.body;
 
     if (!name || !email || !password || !job || !address) {
-      return res
-        .status(400)
-        .json({
-          message:
-            "All fields are required (name, email, password, job, address)",
-        });
+      return res.status(400).json({
+        message:
+          "All fields are required (name, email, password, job, address)",
+      });
     }
 
     if (password.length < 6) {
@@ -21,7 +32,6 @@ const register = async (req, res) => {
         .json({ message: "Password must be at least 6 characters" });
     }
 
-    // Check if user exists
     const [existingUsers] = await pool.execute(
       "SELECT id FROM users WHERE email = ?",
       [email],
@@ -31,33 +41,29 @@ const register = async (req, res) => {
       return res.status(400).json({ message: "Email already registered" });
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Insert user
     const [result] = await pool.execute(
       "INSERT INTO users (name, email, password, job, address) VALUES (?, ?, ?, ?, ?)",
       [name, email, hashedPassword, job, address],
     );
 
-    // Generate token
-    const token = jwt.sign(
-      { id: result.insertId, email, role: "user" },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    const user = {
+      id: result.insertId,
+      name,
+      email,
+      job,
+      address,
+      role: "user",
+    };
+
+    const tokens = await issueTokenPair(user);
 
     res.status(201).json({
       message: "User registered successfully",
-      token,
-      user: {
-        id: result.insertId,
-        name,
-        email,
-        job,
-        address,
-        role: "user",
-      },
+      token: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: toPublicUser(user),
     });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
@@ -89,24 +95,50 @@ const login = async (req, res) => {
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
-    const token = jwt.sign(
-      { id: user.id, email: user.email, role: user.role },
-      process.env.JWT_SECRET,
-      { expiresIn: "7d" },
-    );
+    const tokens = await issueTokenPair(user);
 
     res.json({
       message: "Login successful",
-      token,
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        job: user.job,
-        address: user.address,
-        role: user.role,
-      },
+      token: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+      user: toPublicUser(user),
     });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+const refresh = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ message: "Refresh token is required" });
+    }
+
+    const tokens = await rotateRefreshToken(refreshToken);
+
+    if (!tokens) {
+      return res.status(401).json({
+        message: "Sesi tidak valid atau sudah berakhir. Silakan login kembali.",
+        code: "REFRESH_INVALID",
+      });
+    }
+
+    res.json({
+      token: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+const logout = async (req, res) => {
+  try {
+    const { refreshToken } = req.body;
+    await revokeRefreshToken(refreshToken);
+    res.json({ message: "Logged out successfully" });
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
   }
@@ -129,4 +161,4 @@ const getMe = async (req, res) => {
   }
 };
 
-module.exports = { register, login, getMe };
+module.exports = { register, login, refresh, logout, getMe };
