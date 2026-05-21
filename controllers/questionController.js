@@ -1,5 +1,20 @@
 const pool = require('../config/database');
 
+const MAX_OPTIONS = 26;
+
+const getOptionLabel = (index) => String.fromCharCode(65 + index);
+
+const normalizeOptions = (options) => {
+  if (!options || !Array.isArray(options) || options.length === 0) {
+    return null;
+  }
+
+  return options.slice(0, MAX_OPTIONS).map((opt, idx) => ({
+    label: getOptionLabel(idx),
+    text: opt.text ?? opt.option_text ?? ''
+  }));
+};
+
 const getQuestionsBySubModule = async (req, res) => {
   try {
     const { subModuleId, type } = req.params;
@@ -63,23 +78,21 @@ const createQuestion = async (req, res) => {
 
     const questionId = result.insertId;
 
-    // Insert options if choice type
-    if (options && Array.isArray(options)) {
-      // Only keep up to 4 options and ensure labels A-D
-      const labels = ['A', 'B', 'C', 'D'];
-      const normalized = options
-        .slice(0, 4)
-        .map((opt, idx) => ({
-          label: labels[idx],
-          text: opt.text
-        }));
+    const normalized = normalizeOptions(options);
+    if (!normalized) {
+      return res.status(400).json({ message: 'At least one answer option is required' });
+    }
 
-      for (const option of normalized) {
-        await pool.execute(
-          'INSERT INTO question_options (question_id, option_label, option_text) VALUES (?, ?, ?)',
-          [questionId, option.label, option.text]
-        );
-      }
+    const validLabels = normalized.map((o) => o.label);
+    if (!validLabels.includes(String(correct_answer).toUpperCase().trim())) {
+      return res.status(400).json({ message: 'Correct answer must match one of the option labels' });
+    }
+
+    for (const option of normalized) {
+      await pool.execute(
+        'INSERT INTO question_options (question_id, option_label, option_text) VALUES (?, ?, ?)',
+        [questionId, option.label, option.text]
+      );
     }
 
     // Get created question with options
@@ -127,19 +140,20 @@ const updateQuestion = async (req, res) => {
       ]
     );
 
-    // Update options (all questions are multiple choice)
     if (options && Array.isArray(options)) {
-      // Delete old options
-      await pool.execute('DELETE FROM question_options WHERE question_id = ?', [id]);
+      const normalized = normalizeOptions(options);
+      if (!normalized) {
+        return res.status(400).json({ message: 'At least one answer option is required' });
+      }
 
-      // Normalize to 4 options A-D
-      const labels = ['A', 'B', 'C', 'D'];
-      const normalized = options
-        .slice(0, 4)
-        .map((opt, idx) => ({
-          label: labels[idx],
-          text: opt.text
-        }));
+      const answerToCheck =
+        correct_answer !== undefined ? correct_answer : questions[0].correct_answer;
+      const validLabels = normalized.map((o) => o.label);
+      if (!validLabels.includes(String(answerToCheck).toUpperCase().trim())) {
+        return res.status(400).json({ message: 'Correct answer must match one of the option labels' });
+      }
+
+      await pool.execute('DELETE FROM question_options WHERE question_id = ?', [id]);
 
       for (const option of normalized) {
         await pool.execute(
