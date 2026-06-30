@@ -82,6 +82,8 @@ const apiCatalog = [
     description: "Feedback publik dari website.",
     endpoints: [
       { method: "GET", path: "/api/contact/feedback", auth: "Admin", summary: "Ambil semua feedback." },
+      { method: "PATCH", path: "/api/contact/feedback/:id/status", auth: "Admin", summary: "Tandai feedback sebagai selesai atau buka kembali." },
+      { method: "DELETE", path: "/api/contact/feedback/:id", auth: "Admin", summary: "Hapus feedback." },
       { method: "POST", path: "/api/contact/feedback", auth: "Public", summary: "Kirim feedback." },
     ],
   },
