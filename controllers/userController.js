@@ -1,6 +1,12 @@
 const bcrypt = require("bcryptjs");
 const pool = require("../config/database");
 
+const toCsvCell = (value) => {
+  if (value == null) return "";
+  const text = String(value).replace(/"/g, '""');
+  return `"${text}"`;
+};
+
 const getAllUsers = async (req, res) => {
   try {
     const [users] = await pool.execute(
@@ -173,9 +179,89 @@ const deleteUser = async (req, res) => {
   }
 };
 
+const exportUserProgressBySubModule = async (req, res) => {
+  try {
+    const { subModuleId } = req.query;
+
+    if (!subModuleId) {
+      return res.status(400).json({ message: "subModuleId is required" });
+    }
+
+    const [rows] = await pool.execute(
+      `SELECT
+         u.name,
+         u.email,
+         u.job,
+         u.address,
+         m.name AS module_name,
+         sm.name AS sub_module_name,
+         up.pretest_done,
+         up.pretest_score,
+         up.postest_done,
+         up.postest_score,
+         up.is_passed,
+         up.last_accessed
+       FROM user_progress up
+       JOIN users u ON u.id = up.user_id
+       JOIN sub_modules sm ON sm.id = up.sub_module_id
+       JOIN modules m ON m.id = sm.module_id
+       WHERE up.sub_module_id = ?
+       ORDER BY u.name ASC`,
+      [subModuleId]
+    );
+
+    const header = [
+      "Nama",
+      "Email",
+      "Pekerjaan",
+      "Alamat",
+      "Modul",
+      "Materi",
+      "Pretest Selesai",
+      "Nilai Pretest",
+      "Postest Selesai",
+      "Nilai Postest",
+      "Status Lulus",
+      "Last Accessed",
+    ];
+
+    const lines = [
+      header.map(toCsvCell).join(","),
+      ...rows.map((row) =>
+        [
+          row.name,
+          row.email,
+          row.job || "",
+          row.address || "",
+          row.module_name,
+          row.sub_module_name,
+          row.pretest_done ? "Ya" : "Tidak",
+          row.pretest_done ? row.pretest_score : "",
+          row.postest_done ? "Ya" : "Tidak",
+          row.postest_done ? row.postest_score : "",
+          row.is_passed ? "Lulus" : "Belum lulus",
+          row.last_accessed || "",
+        ]
+          .map(toCsvCell)
+          .join(",")
+      ),
+    ];
+
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader(
+      "Content-Disposition",
+      `attachment; filename="progress-submodule-${subModuleId}.csv"`
+    );
+    res.send(`\uFEFF${lines.join("\n")}`);
+  } catch (error) {
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
   updateUser,
   deleteUser,
+  exportUserProgressBySubModule,
 };

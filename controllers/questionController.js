@@ -15,6 +15,20 @@ const normalizeOptions = (options) => {
   }));
 };
 
+const validateCorrectAnswer = (correctAnswer, options) => {
+  const normalizedAnswer = String(correctAnswer || "").toUpperCase().trim();
+  const validLabels = options.map((option) => option.label);
+
+  if (!validLabels.includes(normalizedAnswer)) {
+    return {
+      ok: false,
+      message: 'Correct answer must match one of the option labels'
+    };
+  }
+
+  return { ok: true, normalizedAnswer };
+};
+
 const getQuestionsBySubModule = async (req, res) => {
   try {
     const { subModuleId, type } = req.params;
@@ -47,7 +61,7 @@ const getQuestionsBySubModule = async (req, res) => {
 
 const createQuestion = async (req, res) => {
   try {
-    const { sub_module_id, type, question_type, question_text, correct_answer, options } = req.body;
+    const { sub_module_id, type, question_text, correct_answer, options } = req.body;
 
     if (!sub_module_id || !type || !question_text || !correct_answer) {
       return res.status(400).json({ message: 'All required fields must be provided' });
@@ -70,23 +84,23 @@ const createQuestion = async (req, res) => {
       return res.status(404).json({ message: 'Sub module not found' });
     }
 
-    // Insert question
-    const [result] = await pool.execute(
-      'INSERT INTO questions (sub_module_id, type, question_type, question_text, correct_answer) VALUES (?, ?, ?, ?, ?)',
-      [sub_module_id, type, finalQuestionType, question_text, correct_answer]
-    );
-
-    const questionId = result.insertId;
-
     const normalized = normalizeOptions(options);
     if (!normalized) {
       return res.status(400).json({ message: 'At least one answer option is required' });
     }
 
-    const validLabels = normalized.map((o) => o.label);
-    if (!validLabels.includes(String(correct_answer).toUpperCase().trim())) {
-      return res.status(400).json({ message: 'Correct answer must match one of the option labels' });
+    const validation = validateCorrectAnswer(correct_answer, normalized);
+    if (!validation.ok) {
+      return res.status(400).json({ message: validation.message });
     }
+
+    // Insert question after all payload validation passes
+    const [result] = await pool.execute(
+      'INSERT INTO questions (sub_module_id, type, question_type, question_text, correct_answer) VALUES (?, ?, ?, ?, ?)',
+      [sub_module_id, type, finalQuestionType, question_text, validation.normalizedAnswer]
+    );
+
+    const questionId = result.insertId;
 
     for (const option of normalized) {
       await pool.execute(
@@ -131,31 +145,42 @@ const updateQuestion = async (req, res) => {
       return res.status(404).json({ message: 'Question not found' });
     }
 
+    const [currentOptions] = await pool.execute(
+      'SELECT option_label, option_text FROM question_options WHERE question_id = ? ORDER BY option_label ASC',
+      [id]
+    );
+
+    const nextOptions = options && Array.isArray(options)
+      ? normalizeOptions(options)
+      : currentOptions.map((option, idx) => ({
+          label: option.option_label || getOptionLabel(idx),
+          text: option.option_text || ''
+        }));
+
+    if (!nextOptions || nextOptions.length === 0) {
+      return res.status(400).json({ message: 'At least one answer option is required' });
+    }
+
+    const nextAnswer =
+      correct_answer !== undefined ? correct_answer : questions[0].correct_answer;
+    const validation = validateCorrectAnswer(nextAnswer, nextOptions);
+    if (!validation.ok) {
+      return res.status(400).json({ message: validation.message });
+    }
+
     await pool.execute(
       'UPDATE questions SET question_text = ?, correct_answer = ? WHERE id = ?',
       [
         question_text || questions[0].question_text,
-        correct_answer !== undefined ? correct_answer : questions[0].correct_answer,
+        validation.normalizedAnswer,
         id
       ]
     );
 
     if (options && Array.isArray(options)) {
-      const normalized = normalizeOptions(options);
-      if (!normalized) {
-        return res.status(400).json({ message: 'At least one answer option is required' });
-      }
-
-      const answerToCheck =
-        correct_answer !== undefined ? correct_answer : questions[0].correct_answer;
-      const validLabels = normalized.map((o) => o.label);
-      if (!validLabels.includes(String(answerToCheck).toUpperCase().trim())) {
-        return res.status(400).json({ message: 'Correct answer must match one of the option labels' });
-      }
-
       await pool.execute('DELETE FROM question_options WHERE question_id = ?', [id]);
 
-      for (const option of normalized) {
+      for (const option of nextOptions) {
         await pool.execute(
           'INSERT INTO question_options (question_id, option_label, option_text) VALUES (?, ?, ?)',
           [id, option.label, option.text]
@@ -218,10 +243,55 @@ const submitAnswers = async (req, res) => {
       return res.status(400).json({ message: 'Invalid test type' });
     }
 
+    const [expectedQuestions] = await pool.execute(
+      'SELECT id FROM questions WHERE sub_module_id = ? AND type = ? ORDER BY created_at ASC',
+      [sub_module_id, test_type]
+    );
+
+    if (expectedQuestions.length === 0) {
+      return res.status(400).json({ message: 'No questions found for this test' });
+    }
+
+    const expectedIds = expectedQuestions.map((question) => question.id);
+    const seenIds = new Set();
+
+    for (const answer of answers) {
+      const questionId = parseInt(answer.question_id);
+      const userAnswer = typeof answer.user_answer === 'string'
+        ? answer.user_answer.trim()
+        : '';
+
+      if (!expectedIds.includes(questionId)) {
+        return res.status(400).json({ message: 'Answer contains invalid question_id' });
+      }
+
+      if (seenIds.has(questionId)) {
+        return res.status(400).json({ message: 'Duplicate answers are not allowed' });
+      }
+
+      if (!userAnswer) {
+        return res.status(400).json({ message: 'All questions must be answered before submit' });
+      }
+
+      seenIds.add(questionId);
+    }
+
+    if (seenIds.size !== expectedIds.length) {
+      return res.status(400).json({ message: 'All questions must be answered before submit' });
+    }
+
     let correctCount = 0;
     let totalQuestions = 0;
 
     const details = [];
+
+    await pool.query(
+      `DELETE FROM user_answers
+       WHERE user_id = ?
+         AND test_type = ?
+         AND question_id IN (${expectedIds.map(() => '?').join(', ')})`,
+      [userId, test_type, ...expectedIds]
+    );
 
     // Process each answer
     for (const answer of answers) {

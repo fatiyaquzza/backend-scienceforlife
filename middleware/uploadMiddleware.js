@@ -2,11 +2,13 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const uploadRoot = path.join(__dirname, '..', 'uploads');
+
 // Ensure upload directories exist
 const uploadDirs = {
-  modules: 'uploads/modules',
-  materials: 'uploads/materials',
-  images: 'uploads/images',
+  modules: path.join(uploadRoot, 'modules'),
+  materials: path.join(uploadRoot, 'materials'),
+  images: path.join(uploadRoot, 'images'),
 };
 
 Object.values(uploadDirs).forEach(dir => {

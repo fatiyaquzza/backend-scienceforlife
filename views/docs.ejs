@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ILMANA API Docs</title>
+    <style>
+      :root {
+        --bg: #f5faf7;
+        --card: #ffffff;
+        --ink: #102b22;
+        --muted: #607468;
+        --line: #dbe9e0;
+        --primary: #0f6a41;
+        --primary-soft: #e8f5ee;
+        --amber-soft: #fff7e6;
+        --amber: #b26a00;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--ink);
+        background: linear-gradient(180deg, #eef7f2 0%, var(--bg) 100%);
+      }
+      .wrap { max-width: 1240px; margin: 0 auto; padding: 40px 20px 72px; }
+      .hero, .group {
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 20px;
+        box-shadow: 0 18px 44px rgba(18, 49, 39, 0.08);
+      }
+      .hero { padding: 30px; margin-bottom: 20px; }
+      .eyebrow {
+        display: inline-flex;
+        padding: 8px 12px;
+        border-radius: 999px;
+        background: var(--primary-soft);
+        color: var(--primary);
+        font-size: 13px;
+        font-weight: 800;
+      }
+      h1 { margin: 16px 0 12px; font-size: clamp(30px, 4vw, 46px); line-height: 1.08; }
+      p { margin: 0; color: var(--muted); line-height: 1.7; }
+      .meta { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+      .meta-chip {
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: #fbfefd;
+        border: 1px solid var(--line);
+        color: var(--muted);
+        font-weight: 700;
+      }
+      .group { padding: 24px; margin-top: 18px; }
+      .group-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 18px;
+      }
+      .group-title { font-size: 26px; font-weight: 800; margin: 0; }
+      .endpoint-grid { display: grid; gap: 14px; }
+      .endpoint {
+        display: grid;
+        grid-template-columns: 100px minmax(0, 1fr) 120px;
+        gap: 16px;
+        align-items: start;
+        padding: 18px;
+        border-radius: 16px;
+        border: 1px solid var(--line);
+        background: #fbfefd;
+      }
+      .method {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 38px;
+        border-radius: 10px;
+        background: var(--primary);
+        color: #fff;
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .path {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        font-size: 15px;
+        font-weight: 700;
+        word-break: break-word;
+      }
+      .auth {
+        display: inline-flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 38px;
+        padding: 0 12px;
+        border-radius: 10px;
+        background: var(--amber-soft);
+        color: var(--amber);
+        font-size: 13px;
+        font-weight: 800;
+      }
+      .actions { margin-top: 20px; display: flex; gap: 12px; flex-wrap: wrap; }
+      a.button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 46px;
+        padding: 0 18px;
+        border-radius: 12px;
+        border: 1px solid var(--line);
+        color: var(--primary);
+        text-decoration: none;
+        font-weight: 800;
+        background: #fff;
+      }
+      a.button.primary {
+        background: var(--primary);
+        border-color: var(--primary);
+        color: #fff;
+      }
+      @media (max-width: 820px) {
+        .endpoint { grid-template-columns: 1fr; }
+      }
+      @media (max-width: 640px) {
+        .wrap { padding: 24px 16px 48px; }
+        .hero, .group { border-radius: 16px; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <section class="hero">
+        <span class="eyebrow">Dokumentasi visual backend</span>
+        <h1>ILMANA API Reference</h1>
+        <p>
+          Semua endpoint yang sedang aktif di backend ini dirangkum di satu halaman. Gunakan
+          ini untuk QA, integrasi frontend, dan pengecekan cepat sebelum deploy production.
+        </p>
+        <div class="meta">
+          <div class="meta-chip"><%= totalEndpointCount %> endpoint</div>
+          <div class="meta-chip"><%= apiCatalog.length %> kelompok route</div>
+          <div class="meta-chip">Bearer token untuk route terproteksi</div>
+        </div>
+        <div class="actions">
+          <a class="button primary" href="/">Status backend</a>
+          <a class="button" href="/api/health">Health JSON</a>
+        </div>
+      </section>
+
+      <% apiCatalog.forEach((group) => { %>
+        <section class="group">
+          <div class="group-head">
+            <div>
+              <h2 class="group-title"><%= group.group %></h2>
+              <p><%= group.description %></p>
+            </div>
+          </div>
+
+          <div class="endpoint-grid">
+            <% group.endpoints.forEach((endpoint) => { %>
+              <article class="endpoint">
+                <div class="method"><%= endpoint.method %></div>
+                <div>
+                  <div class="path"><%= endpoint.path %></div>
+                  <p style="margin-top: 8px;"><%= endpoint.summary %></p>
+                </div>
+                <div class="auth"><%= endpoint.auth %></div>
+              </article>
+            <% }) %>
+          </div>
+        </section>
+      <% }) %>
+    </div>
+  </body>
+</html>

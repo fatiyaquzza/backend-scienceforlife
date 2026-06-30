@@ -1,5 +1,27 @@
 const pool = require('../config/database');
 
+const normalizeReferenceLinks = (input) => {
+  if (input == null || input === "") return [];
+
+  let parsed = input;
+  if (typeof input === "string") {
+    try {
+      parsed = JSON.parse(input);
+    } catch {
+      return [];
+    }
+  }
+
+  if (!Array.isArray(parsed)) return [];
+
+  return parsed
+    .map((item) => ({
+      title: String(item?.title || "").trim(),
+      href: String(item?.href || "").trim(),
+    }))
+    .filter((item) => item.title && item.href);
+};
+
 const getMaterialsBySubModule = async (req, res) => {
   try {
     const { subModuleId } = req.params;
@@ -17,8 +39,9 @@ const getMaterialsBySubModule = async (req, res) => {
 
 const createMaterial = async (req, res) => {
   try {
-    const { sub_module_id, description, video_url } = req.body;
+    const { sub_module_id, description, video_url, reference_links } = req.body;
     const fileUrl = req.file ? `/uploads/materials/${req.file.filename}` : null;
+    const referenceLinks = normalizeReferenceLinks(reference_links);
 
     if (!sub_module_id) {
       return res.status(400).json({ message: 'Sub module ID is required' });
@@ -35,8 +58,14 @@ const createMaterial = async (req, res) => {
     }
 
     const [result] = await pool.execute(
-      'INSERT INTO materials (sub_module_id, description, video_url, file_url) VALUES (?, ?, ?, ?)',
-      [sub_module_id, description || null, video_url || null, fileUrl]
+      'INSERT INTO materials (sub_module_id, description, video_url, file_url, references_json) VALUES (?, ?, ?, ?, ?)',
+      [
+        sub_module_id,
+        description || null,
+        video_url || null,
+        fileUrl,
+        JSON.stringify(referenceLinks),
+      ]
     );
 
     const [newMaterial] = await pool.execute(
@@ -56,7 +85,7 @@ const createMaterial = async (req, res) => {
 const updateMaterial = async (req, res) => {
   try {
     const { id } = req.params;
-    const { description, video_url } = req.body;
+    const { description, video_url, reference_links } = req.body;
 
     // Check if material exists
     const [materials] = await pool.execute(
@@ -73,12 +102,18 @@ const updateMaterial = async (req, res) => {
       fileUrl = `/uploads/materials/${req.file.filename}`;
     }
 
+    const nextReferenceLinks =
+      reference_links !== undefined
+        ? JSON.stringify(normalizeReferenceLinks(reference_links))
+        : materials[0].references_json;
+
     await pool.execute(
-      'UPDATE materials SET description = ?, video_url = ?, file_url = ? WHERE id = ?',
+      'UPDATE materials SET description = ?, video_url = ?, file_url = ?, references_json = ? WHERE id = ?',
       [
         description !== undefined ? description : materials[0].description,
         video_url !== undefined ? video_url : materials[0].video_url,
         fileUrl,
+        nextReferenceLinks,
         id
       ]
     );
