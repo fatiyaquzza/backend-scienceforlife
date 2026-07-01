@@ -45,6 +45,19 @@ if (!fs.existsSync(uploadDir)) {
   console.warn(`[ILMANA] Upload dir not found: ${uploadDir}. Set UPLOAD_DIR in .env or ensure the directory exists.`);
 }
 
+app.get("/api/debug-upload", (req, res) => {
+  const currentDir = path.join(__dirname, "uploads");
+  res.json({
+    uploadDirEnv: process.env.UPLOAD_DIR || "(not set)",
+    uploadDirUsed: uploadDir,
+    uploadDirExists: fs.existsSync(uploadDir),
+    oldPath: currentDir,
+    oldPathExists: fs.existsSync(currentDir),
+    cwd: process.cwd(),
+    dirname: __dirname,
+  });
+});
+
 app.get("/", async (req, res) => {
   const dbHealthy = await checkDatabase();
   const quickLinks = [
