@@ -34,8 +34,16 @@ app.use(express.urlencoded({ extended: true }));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
+const uploadDir = process.env.UPLOAD_DIR || path.join(__dirname, "uploads");
+
 // Serve static files from uploads directory
-app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+app.use("/uploads", express.static(uploadDir));
+
+// Warn on startup if upload dir doesn't exist
+const fs = require("fs");
+if (!fs.existsSync(uploadDir)) {
+  console.warn(`[ILMANA] Upload dir not found: ${uploadDir}. Set UPLOAD_DIR in .env or ensure the directory exists.`);
+}
 
 app.get("/", async (req, res) => {
   const dbHealthy = await checkDatabase();

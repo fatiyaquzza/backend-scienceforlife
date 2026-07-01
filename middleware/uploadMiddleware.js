@@ -2,7 +2,7 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
-const uploadRoot = path.join(__dirname, '..', 'uploads');
+const uploadRoot = process.env.UPLOAD_DIR || path.join(__dirname, '..', 'uploads');
 
 // Ensure upload directories exist
 const uploadDirs = {

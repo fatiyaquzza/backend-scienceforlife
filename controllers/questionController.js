@@ -178,13 +178,22 @@ const updateQuestion = async (req, res) => {
     );
 
     if (options && Array.isArray(options)) {
-      await pool.execute('DELETE FROM question_options WHERE question_id = ?', [id]);
-
-      for (const option of nextOptions) {
-        await pool.execute(
-          'INSERT INTO question_options (question_id, option_label, option_text) VALUES (?, ?, ?)',
-          [id, option.label, option.text]
-        );
+      const conn = await pool.getConnection();
+      try {
+        await conn.beginTransaction();
+        await conn.execute('DELETE FROM question_options WHERE question_id = ?', [id]);
+        for (const option of nextOptions) {
+          await conn.execute(
+            'INSERT INTO question_options (question_id, option_label, option_text) VALUES (?, ?, ?)',
+            [id, option.label, option.text]
+          );
+        }
+        await conn.commit();
+      } catch (txErr) {
+        await conn.rollback();
+        throw txErr;
+      } finally {
+        conn.release();
       }
     }
 
