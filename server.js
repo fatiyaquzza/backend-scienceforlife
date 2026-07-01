@@ -47,40 +47,34 @@ if (!fs.existsSync(uploadDir)) {
 
 app.get("/api/debug-upload", (req, res) => {
   const currentDir = path.join(__dirname, "uploads");
-  const testFile = path.join(uploadDir, "images", "content-1782887663666-72909869.jpeg");
-  const testFileOld = path.join(currentDir, "images", "content-1782887663666-72909869.jpeg");
-  let testFileFound = false;
-  let testFileStat = null;
-  try {
-    if (fs.existsSync(testFile)) {
-      testFileFound = true;
-      testFileStat = fs.statSync(testFile);
+  const domainRoot = path.resolve(__dirname, "..");
+  const domainUploads = path.join(domainRoot, "uploads");
+  const pathsToCheck = [
+    { label: "UPLOAD_DIR", p: uploadDir },
+    { label: "project uploads", p: currentDir },
+    { label: "domain-root uploads", p: domainUploads },
+    { label: "home uploads", p: "/home/u497230645/uploads" },
+    { label: "data", p: "/data" },
+    { label: "tmp", p: "/tmp" },
+    { label: "storage", p: "/storage" },
+  ];
+  const results = pathsToCheck.map(({ label, p }) => {
+    let exists = false, listing = [], test = null;
+    try { exists = fs.existsSync(p); } catch (e) { /* skip */ }
+    if (exists) {
+      try {
+        const imgDir = path.join(p, "images");
+        if (fs.existsSync(imgDir)) listing = fs.readdirSync(imgDir).slice(0, 20);
+      } catch (e) { listing = [{ error: e.message }]; }
+      const testFile = path.join(p, "images", "content-1782887663666-72909869.jpeg");
+      try { test = fs.existsSync(testFile); } catch (e) { test = false; }
     }
-  } catch (e) {
-    testFileStat = { error: e.message };
-  }
-  let listing = [];
-  try {
-    if (fs.existsSync(path.join(uploadDir, "images"))) {
-      listing = fs.readdirSync(path.join(uploadDir, "images")).slice(0, 20);
-    }
-  } catch (e) {
-    listing = [{ error: e.message }];
-  }
+    return { label, path: p, exists, imagesListing: listing, testFileExists: test };
+  });
   res.json({
-    uploadDirEnv: process.env.UPLOAD_DIR || "(not set)",
-    uploadDirUsed: uploadDir,
-    uploadDirExists: fs.existsSync(uploadDir),
-    testFile: testFile,
-    testFileFound,
-    testFileStat,
-    testFileOld,
-    testFileOldExists: fs.existsSync(testFileOld),
-    imagesDirContent: listing,
-    oldPath: currentDir,
-    oldPathExists: fs.existsSync(currentDir),
-    cwd: process.cwd(),
     dirname: __dirname,
+    domainRoot,
+    paths: results,
   });
 });
 
