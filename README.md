@@ -47,6 +47,7 @@ DB_NAME=science_for_life
 JWT_SECRET=rahasia_jwt_anda
 GEMINI_API_KEY=api_key_gemini_anda
 GEMINI_MODEL=gemini-2.5-flash
+CLIENT_ORIGINS=http://localhost:3000,https://ilmanainitiative.com,https://www.ilmanainitiative.com
 
 # 5. Seed admin (wajib sekali sebelum pertama kali)
 npm run seed:admin
@@ -69,6 +70,7 @@ npm start       # production
 | `GEMINI_API_KEY` | Tidak | — | API key Google Gemini (untuk AI chat) |
 | `GEMINI_MODEL` | Tidak | `gemini-2.5-flash` | Model Gemini |
 | `UPLOAD_DIR` | Tidak | `./uploads` | Path absolut folder upload (biar aman dari redeploy) |
+| `CLIENT_ORIGINS` | Tidak | localhost + domain ILMANA | Origin frontend yang boleh mengakses API |
 
 ### Scripts
 
@@ -281,4 +283,7 @@ Setelah ini, redeploy (git pull / restart) tidak akan menghapus file upload.
 
 - **Upload folders** — pastikan folder upload ada (default `./uploads/{modules,materials,images}`)
 - **Kolom `references_json`** — pada tabel `materials`, tambahkan kolom `references_json JSON NULL` setelah kolom `file_url` jika belum ada.
+- **Kolom `modules.description`** — jalankan `migrations/004_modules_description_longtext.sql` agar deskripsi modul rich text tidak kepotong.
+- **Proxy API production** — pastikan request `https://ilmanainitiative.com/api/*` diarahkan ke backend, bukan ke `index.html` frontend.
+- **CORS production** — isi `CLIENT_ORIGINS` dengan domain frontend resmi, misalnya `https://ilmanainitiative.com,https://www.ilmanainitiative.com`.
 - **Environment** — set `NODE_ENV=production` pada production agar detail error tidak bocor ke client.

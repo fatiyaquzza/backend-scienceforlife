@@ -9,6 +9,18 @@ if (process.env.NODE_ENV !== "production") {
 
 const app = express();
 const startedAt = Date.now();
+const DEFAULT_CLIENT_ORIGINS = [
+  "http://localhost:3000",
+  "http://localhost:5173",
+  "https://ilmanainitiative.com",
+  "https://www.ilmanainitiative.com",
+];
+const clientOrigins = new Set(
+  (process.env.CLIENT_ORIGINS || DEFAULT_CLIENT_ORIGINS.join(","))
+    .split(",")
+    .map((origin) => origin.trim())
+    .filter(Boolean)
+);
 
 const formatUptime = () => {
   const totalSeconds = Math.floor((Date.now() - startedAt) / 1000);
@@ -27,10 +39,94 @@ const checkDatabase = async () => {
   }
 };
 
+const securityHeaders = (req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+  res.setHeader(
+    "Content-Security-Policy",
+    [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: https:",
+      "connect-src 'self'",
+      "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "frame-ancestors 'none'",
+      "upgrade-insecure-requests",
+    ].join("; ")
+  );
+
+  if (req.secure || req.headers["x-forwarded-proto"] === "https") {
+    res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
+  }
+
+  next();
+};
+
+const rateLimitMaps = [];
+
+const createRateLimit = ({ windowMs, max }) => {
+  const hits = new Map();
+  rateLimitMaps.push(hits);
+
+  return (req, res, next) => {
+    const now = Date.now();
+    const key = `${req.ip || req.socket.remoteAddress}:${req.method}:${req.path}`;
+    const hit = hits.get(key);
+
+    if (!hit || hit.resetAt <= now) {
+      hits.set(key, { count: 1, resetAt: now + windowMs });
+      return next();
+    }
+
+    hit.count += 1;
+    if (hit.count > max) {
+      const retryAfter = Math.ceil((hit.resetAt - now) / 1000);
+      res.setHeader("Retry-After", String(retryAfter));
+      return res.status(429).json({
+        message: "Terlalu banyak percobaan. Coba lagi nanti.",
+      });
+    }
+
+    next();
+  };
+};
+
+// Cleanup expired rate-limit entries every 5 minutes to prevent memory leak
+setInterval(() => {
+  const now = Date.now();
+  rateLimitMaps.forEach((map) => {
+    for (const [key, entry] of map) {
+      if (entry.resetAt <= now) map.delete(key);
+    }
+  });
+}, 5 * 60 * 1000).unref();
+
+const authRateLimit = createRateLimit({ windowMs: 15 * 60 * 1000, max: 20 });
+const contactRateLimit = createRateLimit({ windowMs: 10 * 60 * 1000, max: 10 });
+const postOnly = (middleware) => (req, res, next) =>
+  req.method === "POST" ? middleware(req, res, next) : next();
+
 // Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.disable("x-powered-by");
+app.set("trust proxy", 1);
+app.use(securityHeaders);
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || clientOrigins.has(origin)) return callback(null, true);
+    return callback(null, false);
+  },
+}));
+app.use(express.json({ limit: "1mb" }));
+app.use(express.urlencoded({ extended: true, limit: "1mb" }));
+app.use("/api/auth/login", postOnly(authRateLimit));
+app.use("/api/auth/register", postOnly(authRateLimit));
+app.use("/api/contact/feedback", postOnly(contactRateLimit));
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -44,39 +140,6 @@ const fs = require("fs");
 if (!fs.existsSync(uploadDir)) {
   console.warn(`[ILMANA] Upload dir not found: ${uploadDir}. Set UPLOAD_DIR in .env or ensure the directory exists.`);
 }
-
-app.get("/api/debug-upload", (req, res) => {
-  const currentDir = path.join(__dirname, "uploads");
-  const domainRoot = path.resolve(__dirname, "..");
-  const domainUploads = path.join(domainRoot, "uploads");
-  const pathsToCheck = [
-    { label: "UPLOAD_DIR", p: uploadDir },
-    { label: "project uploads", p: currentDir },
-    { label: "domain-root uploads", p: domainUploads },
-    { label: "home uploads", p: "/home/u497230645/uploads" },
-    { label: "data", p: "/data" },
-    { label: "tmp", p: "/tmp" },
-    { label: "storage", p: "/storage" },
-  ];
-  const results = pathsToCheck.map(({ label, p }) => {
-    let exists = false, listing = [], test = null;
-    try { exists = fs.existsSync(p); } catch (e) { /* skip */ }
-    if (exists) {
-      try {
-        const imgDir = path.join(p, "images");
-        if (fs.existsSync(imgDir)) listing = fs.readdirSync(imgDir).slice(0, 20);
-      } catch (e) { listing = [{ error: e.message }]; }
-      const testFile = path.join(p, "images", "content-1782887663666-72909869.jpeg");
-      try { test = fs.existsSync(testFile); } catch (e) { test = false; }
-    }
-    return { label, path: p, exists, imagesListing: listing, testFileExists: test };
-  });
-  res.json({
-    dirname: __dirname,
-    domainRoot,
-    paths: results,
-  });
-});
 
 app.get("/", async (req, res) => {
   const dbHealthy = await checkDatabase();
