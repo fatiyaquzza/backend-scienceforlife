@@ -2,6 +2,12 @@
 
 REST API untuk platform pembelajaran sains interaktif ILMANA (Ilmu Manusia dan Alam). Dibangun dengan Express.js dan MySQL.
 
+> **GitHub:** [fatiyaquzza/backend-scienceforlife](https://github.com/fatiyaquzza/backend-scienceforlife)
+> **Server:** Hostinger VPS (Phusion Passenger + Node.js 22)
+> **Domain Backend:** `azure-barracuda-788858.hostingersite.com`
+> **Domain Frontend:** `ilmanainitiative.com`
+> **Last updated:** 9 Juli 2026
+
 ---
 
 ## Tech Stack
@@ -252,6 +258,36 @@ Module → SubModule → Pretest → Material → Postest → AI Chat
 4. Mempelajari **Material** — teks kaya, video YouTube, file PDF, referensi
 5. Mengerjakan **Postest** — soal pilihan ganda
 6. Melihat **Hasil** — score, status passing grade, plus **AI Chat** untuk tanya jawab lanjutan
+
+---
+
+## Content Security Policy (CSP)
+
+Aplikasi ini menggunakan CSP untuk keamanan. Konfigurasi CSP ada di **DUA tempat**:
+
+| Lokasi | File | Untuk |
+|--------|------|-------|
+| Backend Express | `server.js` → `securityHeaders` | Response header dari Node.js |
+| Backend Apache | `public_html/.htaccess` | Header dari Apache/Passenger |
+| Frontend Apache | `ilmanainitiative.com/public_html/.htaccess` | Header dari frontend domain |
+
+### ⚠️ PENTING: CSP `connect-src`
+
+Frontend (`ilmanainitiative.com`) melakukan fetch/XHR ke backend (`azure-barracuda-788858.hostingersite.com`).
+
+**Jika CSP frontend hanya `connect-src 'self'`, semua API call DIBLOKIR browser dan login GAGAL!**
+
+Pastikan ketiga file di atas memiliki `connect-src` yang mengizinkan komunikasi cross-origin:
+
+```
+# Backend (server.js / backend .htaccess):
+connect-src 'self' https://ilmanainitiative.com https://www.ilmanainitiative.com
+
+# Frontend (ilmanainitiative.com .htaccess):
+connect-src 'self' https://azure-barracuda-788858.hostingersite.com
+```
+
+Detail lengkap: lihat [docs/CSP-SETUP.md](docs/CSP-SETUP.md)
 
 ---
 
