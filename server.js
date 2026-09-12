@@ -1,11 +1,11 @@
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
-const pool = require("./config/database");
-const { apiCatalog, totalEndpointCount } = require("./docs/apiCatalog");
 if (process.env.NODE_ENV !== "production") {
   require("dotenv").config();
 }
+const pool = require("./config/database");
+const { apiCatalog, totalEndpointCount } = require("./docs/apiCatalog");
 
 const app = express();
 const startedAt = Date.now();
@@ -180,6 +180,7 @@ app.use("/api/progress", require("./routes/userProgressRoutes"));
 app.use("/api/users", require("./routes/userRoutes"));
 app.use("/api/ai", require("./routes/aiChatRoutes"));
 app.use("/api/contact", require("./routes/contactRoutes"));
+app.use("/api/team", require("./routes/teamRoutes"));
 app.use("/api", require("./routes/uploadRoutes"));
 
 // Health check

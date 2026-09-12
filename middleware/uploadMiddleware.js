@@ -9,6 +9,7 @@ const uploadDirs = {
   modules: path.join(uploadRoot, 'modules'),
   materials: path.join(uploadRoot, 'materials'),
   images: path.join(uploadRoot, 'images'),
+  team: path.join(uploadRoot, 'team'),
 };
 
 Object.values(uploadDirs).forEach(dir => {
@@ -87,6 +88,20 @@ const contentImageStorage = multer.diskStorage({
   },
 });
 
+const teamImageStorage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDirs.team),
+  filename: (req, file, cb) => {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, 'team-' + uniqueSuffix + path.extname(file.originalname));
+  },
+});
+
+const uploadTeamImageMulter = multer({
+  storage: teamImageStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: imageFilter,
+});
+
 const uploadContentImageMulter = multer({
   storage: contentImageStorage,
   limits: { fileSize: 5 * 1024 * 1024 },
@@ -97,4 +112,5 @@ module.exports = {
   uploadModuleImage: uploadModuleImage.single('image'),
   uploadMaterialFile: uploadMaterialFile.single('file'),
   uploadContentImage: uploadContentImageMulter.single('image'),
+  uploadTeamImage: uploadTeamImageMulter.single('photo'),
 };

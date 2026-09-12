@@ -9,4 +9,7 @@ uploads/
 # Runtime artifacts
 console.log
 stderr.log
+*.log
 tmp/
+backups/
+*.sql.gz

@@ -71,6 +71,20 @@ const apiCatalog = [
     ],
   },
   {
+    group: "Tim Kami",
+    description: "Data kategori dan anggota tim untuk landing page serta panel admin.",
+    endpoints: [
+      { method: "GET", path: "/api/team", auth: "Public", summary: "Kategori dan anggota tim aktif." },
+      { method: "GET", path: "/api/team/admin?all=1", auth: "Admin", summary: "Seluruh kategori dan anggota, termasuk yang nonaktif." },
+      { method: "POST", path: "/api/team/categories", auth: "Admin", summary: "Tambah kategori tim." },
+      { method: "PUT", path: "/api/team/categories/:id", auth: "Admin", summary: "Ubah kategori tim." },
+      { method: "DELETE", path: "/api/team/categories/:id", auth: "Admin", summary: "Hapus kategori tim dan anggotanya." },
+      { method: "POST", path: "/api/team/members", auth: "Admin", summary: "Tambah anggota tim dengan foto opsional." },
+      { method: "PUT", path: "/api/team/members/:id", auth: "Admin", summary: "Ubah anggota tim." },
+      { method: "DELETE", path: "/api/team/members/:id", auth: "Admin", summary: "Hapus anggota tim." },
+    ],
+  },
+  {
     group: "Upload",
     description: "Upload gambar inline editor.",
     endpoints: [
