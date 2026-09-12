@@ -6,9 +6,12 @@ const getSubModulesByModule = async (req, res) => {
 
     const [subModules] = await pool.execute(
       `SELECT sm.*, 
-       COUNT(DISTINCT m.id) as material_count
+       COUNT(DISTINCT m.id) AS material_count,
+       COUNT(DISTINCT CASE WHEN q.type = 'pretest' THEN q.id END) AS pretest_count,
+       COUNT(DISTINCT CASE WHEN q.type = 'postest' THEN q.id END) AS postest_count
        FROM sub_modules sm
        LEFT JOIN materials m ON sm.id = m.sub_module_id
+       LEFT JOIN questions q ON sm.id = q.sub_module_id
        WHERE sm.module_id = ?
        GROUP BY sm.id
        ORDER BY sm.created_at ASC`,
