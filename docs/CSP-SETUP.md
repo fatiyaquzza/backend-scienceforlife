@@ -58,7 +58,7 @@ script-src 'self' 'unsafe-inline'; \
 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; \
 font-src 'self' https://fonts.gstatic.com data:; \
 img-src 'self' data: https:; \
-connect-src 'self' https://azure-barracuda-788858.hostingersite.com; \
+connect-src 'self' https://azure-barracuda-788858.hostingersite.com blob:; \
 frame-src https://www.youtube.com https://www.youtube-nocookie.com; \
 object-src 'none'; \
 base-uri 'self'; \
@@ -66,7 +66,7 @@ frame-ancestors 'none'; \
 upgrade-insecure-requests"
 ```
 
-**Kunci:** `connect-src 'self' https://azure-barracuda-788858.hostingersite.com`
+**Kunci:** `connect-src 'self' https://azure-barracuda-788858.hostingersite.com blob:` — `blob:` dibutuhkan untuk preview PDF (react-pdf/pdf.js membaca file via `URL.createObjectURL`)
 
 ### 2. Backend `.htaccess` (Apache/Passenger)
 **Lokasi:** `/home/u497230645/domains/azure-barracuda-788858.hostingersite.com/public_html/.htaccess`
