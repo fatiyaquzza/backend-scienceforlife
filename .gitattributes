@@ -1,0 +1,28 @@
+# Menormalkan akhir baris secara eksplisit.
+#
+# Repo ini dideploy ke Linux (git pull + Passenger), sedangkan sebagian besar
+# orang developing di Windows dengan core.autocrlf=true. Tanpa aturan ini,
+# file yang ter-commit dengan CRLF akan ikut ter-deploy ke Linux dan bisa
+# menggagalkan skrip shell. LF di index, CRLF hanya di folder kerja Windows.
+* text=auto eol=lf
+
+# Aset binary tidak boleh pernah terkena konversi akhir baris. Git sudah
+# mendeteksi sebagian di antaranya, tapi penandaan eksplisit menutup celah
+# untuk aset baru.
+*.pdf binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.svg text eol=lf
+*.mp4 binary
+*.webm binary
+*.mp3 binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.zip binary
+*.gz binary
