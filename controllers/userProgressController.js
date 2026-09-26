@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { serverError } = require('../utils/httpError');
 
 const getProgressBySubModule = async (req, res) => {
   try {
@@ -41,7 +42,7 @@ const getProgressBySubModule = async (req, res) => {
 
     res.json({ progress: progress[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -71,7 +72,7 @@ const getAllUserProgress = async (req, res) => {
 
     res.json({ progress });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 

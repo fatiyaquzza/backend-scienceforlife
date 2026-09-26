@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const pool = require("../config/database");
+const { serverError } = require('../utils/httpError');
 
 const toCsvCell = (value) => {
   if (value == null) return "";
@@ -39,7 +40,7 @@ const getAllUsers = async (req, res) => {
 
     res.json({ users });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -59,7 +60,7 @@ const getUserById = async (req, res) => {
 
     res.json({ user: users[0] });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -147,7 +148,7 @@ const updateUser = async (req, res) => {
       user: updatedUser[0],
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -175,7 +176,7 @@ const deleteUser = async (req, res) => {
 
     res.json({ message: "User deleted successfully" });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -254,7 +255,7 @@ const exportUserProgressBySubModule = async (req, res) => {
     );
     res.send(`\uFEFF${lines.join("\n")}`);
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    serverError(res, error);
   }
 };
 

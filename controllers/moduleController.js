@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { serverError } = require('../utils/httpError');
 
 const getAllModules = async (req, res) => {
   try {
@@ -13,7 +14,7 @@ const getAllModules = async (req, res) => {
 
     res.json({ modules });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -32,7 +33,7 @@ const getModuleById = async (req, res) => {
 
     res.json({ module: modules[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -60,7 +61,7 @@ const createModule = async (req, res) => {
       module: newModule[0]
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -99,7 +100,7 @@ const updateModule = async (req, res) => {
       module: updatedModule[0]
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -121,7 +122,7 @@ const deleteModule = async (req, res) => {
 
     res.json({ message: 'Module deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 

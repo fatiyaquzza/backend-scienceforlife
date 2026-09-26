@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { serverError } = require('../utils/httpError');
 const fs = require('fs/promises');
 const { normalizeMaterialInteractions } = require('../utils/materialInteractions');
 
@@ -21,14 +22,20 @@ const validatePdfSignature = async (file) => {
   }
 };
 
+// Admin UI selalu mengirim pdf_page_count, dan untuk modul legacy
+// (material_layout='legacy') isinya "0" karena tidak ada flipbook yang perlu
+// dihitung. Nilai 0 itu berarti "belum dihitung", bukan "nilai tidak valid",
+// jadi harus diterima lalu disimpan NULL. Dulu 0 ditolak dan seluruh
+// penyimpanan materi di modul legacy berakhir HTTP 400.
 const parsePageCount = (value) => {
   if (value == null || value === '') return null;
   const parsed = Number(value);
-  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 2000) {
+  if (!Number.isInteger(parsed) || parsed < 0 || parsed > 2000) {
     throw new Error('Jumlah halaman PDF tidak valid');
   }
-  return parsed;
+  return parsed === 0 ? null : parsed;
 };
+
 
 const normalizeReferenceLinks = (input) => {
   if (input == null || input === "") return [];
@@ -63,7 +70,7 @@ const getMaterialsBySubModule = async (req, res) => {
 
     res.json({ materials });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -117,7 +124,8 @@ const createMaterial = async (req, res) => {
   } catch (error) {
     await removeUploadedFile(req.file);
     const validationError = error.message.includes('PDF') || error.message.includes('interaksi') || error.message.includes('Tautan') || error.message.includes('Video') || error.message.includes('Gambar') || error.message.includes('halaman');
-    res.status(validationError ? 400 : 500).json({ message: validationError ? error.message : 'Server error', error: validationError ? undefined : error.message });
+    if (!validationError) return serverError(res, error);
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -182,7 +190,8 @@ const updateMaterial = async (req, res) => {
   } catch (error) {
     await removeUploadedFile(req.file);
     const validationError = error.message.includes('PDF') || error.message.includes('interaksi') || error.message.includes('Tautan') || error.message.includes('Video') || error.message.includes('Gambar') || error.message.includes('halaman');
-    res.status(validationError ? 400 : 500).json({ message: validationError ? error.message : 'Server error', error: validationError ? undefined : error.message });
+    if (!validationError) return serverError(res, error);
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -204,7 +213,7 @@ const deleteMaterial = async (req, res) => {
 
     res.json({ message: 'Material deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -212,5 +221,8 @@ module.exports = {
   getMaterialsBySubModule,
   createMaterial,
   updateMaterial,
-  deleteMaterial
+  deleteMaterial,
+  // Diekspor untuk pengujian regresi: nilai 0 yang dulu ditolak adalah
+  // penyebab utama materi modul legacy tidak bisa disimpan.
+  parsePageCount
 };

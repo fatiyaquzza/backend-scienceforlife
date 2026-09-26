@@ -1,4 +1,5 @@
 const pool = require('../config/database');
+const { serverError } = require('../utils/httpError');
 
 const getSubModulesByModule = async (req, res) => {
   try {
@@ -20,7 +21,7 @@ const getSubModulesByModule = async (req, res) => {
 
     res.json({ subModules });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -39,7 +40,7 @@ const getSubModuleById = async (req, res) => {
 
     res.json({ subModule: subModules[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -76,7 +77,7 @@ const createSubModule = async (req, res) => {
       subModule: newSubModule[0]
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -115,7 +116,7 @@ const updateSubModule = async (req, res) => {
       subModule: updatedSubModule[0]
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -137,7 +138,7 @@ const deleteSubModule = async (req, res) => {
 
     res.json({ message: 'Sub module deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 

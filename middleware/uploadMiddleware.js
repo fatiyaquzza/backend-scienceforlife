@@ -40,41 +40,56 @@ const materialStorage = multer.diskStorage({
   }
 });
 
+// Ekstensi dan MIME dikunci dengan pola yang DIANCUR, bukan `test()` tanpa
+// anchor. `test()` tanpa anchor mencocokkan di mana saja dalam string, jadi
+// `evil.png.exe` lolos cek ekstensi dan `application/pdf-evil` lolos cek MIME.
+// File tetap aman karena X-Content-Type-Options: nosniff, tapi nama yang
+// berakhiran `.exe` di direktori upload tidak pernah benar-benar diinginkan.
+const IMAGE_EXTENSION = /^\.(jpe?g|png|gif|webp)$/i;
+const PDF_EXTENSION = /^\.pdf$/i;
+
+// Batas field non-file. Tanpa ini payload `interactions` yang besar ditolak
+// sebagai error 500 (bukan 400) oleh default multer, karena limit field
+// menghasilkan MulterError dengan kode LIMIT_FIELD_VALUE yang dulu tidak
+// dipetakan di error handler.
+const MULTIPART_LIMITS = {
+  // 200 interaksi x sekitar 1 KB tiap satu sudah melebihi batas ini.
+  fieldSize: 1024 * 1024,
+  fields: 40,
+  parts: 45,
+};
+
 // File filter for images
 const imageFilter = (req, file, cb) => {
-  const allowedTypes = /jpeg|jpg|png|gif|webp/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  const extname = IMAGE_EXTENSION.test(path.extname(file.originalname));
+  const mimetype = /^image\/(jpe?g|png|gif|webp)$/i.test(file.mimetype);
 
   if (mimetype && extname) {
     return cb(null, true);
-  } else {
-    cb(new Error('Only image files are allowed!'));
   }
+  cb(new Error('Only image files are allowed!'));
 };
 
 // File filter for PDFs
 const pdfFilter = (req, file, cb) => {
-  const allowedTypes = /pdf/;
-  const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-  const mimetype = allowedTypes.test(file.mimetype);
+  const extname = PDF_EXTENSION.test(path.extname(file.originalname));
+  const mimetype = file.mimetype === 'application/pdf';
 
   if (mimetype && extname) {
     return cb(null, true);
-  } else {
-    cb(new Error('Only PDF files are allowed!'));
   }
+  cb(new Error('Only PDF files are allowed!'));
 };
 
 const uploadModuleImage = multer({
   storage: moduleStorage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+  limits: { fileSize: 5 * 1024 * 1024, ...MULTIPART_LIMITS }, // 5MB
   fileFilter: imageFilter
 });
 
 const uploadMaterialFile = multer({
   storage: materialStorage,
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
+  limits: { fileSize: 10 * 1024 * 1024, ...MULTIPART_LIMITS }, // 10MB
   fileFilter: pdfFilter
 });
 
@@ -98,13 +113,13 @@ const teamImageStorage = multer.diskStorage({
 
 const uploadTeamImageMulter = multer({
   storage: teamImageStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024, ...MULTIPART_LIMITS },
   fileFilter: imageFilter,
 });
 
 const uploadContentImageMulter = multer({
   storage: contentImageStorage,
-  limits: { fileSize: 5 * 1024 * 1024 },
+  limits: { fileSize: 5 * 1024 * 1024, ...MULTIPART_LIMITS },
   fileFilter: imageFilter,
 });
 

@@ -1,5 +1,6 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const pool = require('../config/database');
+const { serverError } = require('../utils/httpError');
 
 const chat = async (req, res) => {
   try {
@@ -56,19 +57,17 @@ Jawablah dengan bahasa Indonesia yang jelas, ramah, dan mudah dipahami. Jika per
       sub_module_name: subModule.name
     });
   } catch (error) {
-    // Tangani kasus model 404 dengan pesan yang lebih jelas ke frontend
+    // Tangani kasus model 404 dengan pesan yang lebih jelas ke frontend.
+    // Detail error Google tetap disembunyikan di produksi: string dari
+    // provider bisa memuat nama project, key prefix, atau payload prompt.
     if (error.message && error.message.includes('404 Not Found')) {
       return res.status(500).json({
         message: 'Model Gemini tidak ditemukan atau tidak mendukung generateContent. ' +
-          'Silakan cek nama model di Google AI Studio dan set ENV GEMINI_MODEL sesuai nama model yang tersedia.',
-        error: error.message
+          'Silakan cek nama model di Google AI Studio dan set ENV GEMINI_MODEL sesuai nama model yang tersedia.'
       });
     }
 
-    res.status(500).json({ 
-      message: 'Error communicating with AI', 
-      error: error.message 
-    });
+    return serverError(res, error);
   }
 };
 

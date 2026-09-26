@@ -1,8 +1,23 @@
 const pool = require('../config/database');
+const { serverError } = require('../utils/httpError');
 
 const MAX_OPTIONS = 26;
 
+// Kolom yang boleh dikirim ke klien. correct_answer sengaja TIDAK ada di
+// daftar ini: endpoint soal ini publik, jadi `SELECT *` pernah membocorkan
+// kunci jawaban ke siapa saja yang tahu URL-nya. Admin tetap dapat kuncinya,
+// tapi hanya lewat kolom tambahan yang di-mount terpisah di bawah.
+const PUBLIC_QUESTION_COLUMNS = [
+  'id',
+  'sub_module_id',
+  'type',
+  'question_type',
+  'question_text',
+  'created_at'
+];
+
 const getOptionLabel = (index) => String.fromCharCode(65 + index);
+
 
 const normalizeOptions = (options) => {
   if (!options || !Array.isArray(options) || options.length === 0) {
@@ -37,8 +52,13 @@ const getQuestionsBySubModule = async (req, res) => {
       return res.status(400).json({ message: 'Invalid question type' });
     }
 
+    const isAdmin = req.user?.role === 'admin';
+    const columns = isAdmin
+      ? [...PUBLIC_QUESTION_COLUMNS, 'correct_answer']
+      : PUBLIC_QUESTION_COLUMNS;
+
     const [questions] = await pool.execute(
-      'SELECT * FROM questions WHERE sub_module_id = ? AND type = ? ORDER BY created_at ASC',
+      `SELECT ${columns.join(', ')} FROM questions WHERE sub_module_id = ? AND type = ? ORDER BY created_at ASC`,
       [subModuleId, type]
     );
 
@@ -55,7 +75,7 @@ const getQuestionsBySubModule = async (req, res) => {
 
     res.json({ questions });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -126,7 +146,7 @@ const createQuestion = async (req, res) => {
       question: newQuestion[0]
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -213,7 +233,7 @@ const updateQuestion = async (req, res) => {
       question: updatedQuestion[0]
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -235,7 +255,7 @@ const deleteQuestion = async (req, res) => {
 
     res.json({ message: 'Question deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -412,7 +432,7 @@ const submitAnswers = async (req, res) => {
       });
     }
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 

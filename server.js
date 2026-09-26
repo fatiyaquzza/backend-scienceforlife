@@ -6,6 +6,7 @@ if (process.env.NODE_ENV !== "production") {
 }
 const pool = require("./config/database");
 const { apiCatalog, totalEndpointCount } = require("./docs/apiCatalog");
+const { classifyError } = require("./utils/httpError");
 
 const app = express();
 const startedAt = Date.now();
@@ -114,7 +115,15 @@ const postOnly = (middleware) => (req, res, next) =>
 
 // Middleware
 app.disable("x-powered-by");
-app.set("trust proxy", 1);
+// Jumlah proxy yang mendahului aplikasi. Nilai ini menentukan sebanyak apa
+// X-Forwarded-For dipercaya. Dulu selalu 1, padahal kalau aplikasinya dijalankan
+// tanpa proxy (misalnya `npm run dev`) atau ada dua hop di depannya, req.ip
+// diambil langsung dari header yang dikendalikan klien. Karena rate limiter
+// memakai req.ip sebagai kunci, penyerang cukup mengacak header itu untuk
+// melewati batas login/register/feedback tanpa batas.
+const trustProxyHops = Number.parseInt(process.env.TRUST_PROXY_HOPS ?? "1", 10);
+app.set("trust proxy", Number.isInteger(trustProxyHops) && trustProxyHops >= 0 ? trustProxyHops : 1);
+
 app.use(securityHeaders);
 app.use(cors({
   origin: (origin, callback) => {
@@ -184,19 +193,57 @@ app.use("/api/team", require("./routes/teamRoutes"));
 app.use("/api", require("./routes/uploadRoutes"));
 
 // Health check
-app.get("/api/health", (req, res) => {
-  res.json({ message: "Ilmana API is running", status: "OK" });
+app.get("/api/health", async (req, res) => {
+  // Dulu endpoint ini selalu balas OK tanpa menyentuh database, jadi load
+  // balancer akan melapor sehat padahal MySQL tidak bisa dijangkau. Health
+  // check yang tidak memverifikasi apa pun hanya memindahkan masalah ke
+  // request berikutnya.
+  const dbHealthy = await checkDatabase();
+
+  res.status(dbHealthy ? 200 : 503).json({
+    message: dbHealthy ? "Ilmana API is running" : "Database unavailable",
+    status: dbHealthy ? "OK" : "DEGRADED",
+    uptime: formatUptime(),
+    environment: process.env.NODE_ENV || "development",
+  });
 });
 
+// 404 untuk path API yang tidak terdaftar. Harus SETELAH semua route di atas:
+// kalau diletakkan lebih awal, handler ini akan menangkap /api/health juga.
+// Tanpa handler ini Express membalas HTML 404 bawaan, yang tidak konsisten
+// dengan seluruh respons API lain.
+app.use("/api", (req, res) => {
+  res.status(404).json({ message: "Endpoint not found" });
+});
+
+
 // Error handling middleware
+//
+// Dua masalah lama yang diperbaiki di sini:
+//
+// 1. Dulu error ditangani dengan `err.message.includes("Only")`. Itu tebakan
+//    rapuh: error apa pun yang kebetulan mengandung kata "Only" akan dibalas
+//    400 sekaligus memantulkan pesan mentahnya. Sekarang penentuannya
+//    berdasarkan kode terstruktur dari multer dan body parser, bukan tebakan
+//    teks. Implementasinya ada di utils/httpError.js supaya bisa diuji
+//    tanpa mem-boot server.
+// 2. Handler ini tidak pernah menulis apa pun ke log, jadi tidak ada jejak
+//    error di server. Sekarang setiap kegagalan tidak terduga dicatat.
 app.use((err, req, res, next) => {
-  if (err.message && err.message.includes("Only")) {
-    return res.status(400).json({ message: err.message });
+  if (res.headersSent) {
+    return next(err);
   }
 
-  res.status(500).json({
-    message: "Internal server error",
-    error: process.env.NODE_ENV === "development" ? err.message : undefined,
+  const { status, message } = classifyError(err);
+  console.error(`[ILMANA] ${req.method} ${req.originalUrl} -> ${status}:`, err?.stack || message);
+
+  if (status < 500) {
+    return res.status(status).json({ message });
+  }
+
+  res.status(status).json({
+    message,
+    ...(process.env.NODE_ENV === "development" ? { error: err?.message } : {}),
   });
 });
 

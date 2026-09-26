@@ -1,6 +1,7 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const pool = require("../config/database");
+const { serverError } = require('../utils/httpError');
 
 const register = async (req, res) => {
   try {
@@ -54,7 +55,7 @@ const register = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -102,7 +103,7 @@ const login = async (req, res) => {
       },
     });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -119,7 +120,7 @@ const getMe = async (req, res) => {
 
     res.json({ user: users[0] });
   } catch (error) {
-    res.status(500).json({ message: "Server error", error: error.message });
+    serverError(res, error);
   }
 };
 

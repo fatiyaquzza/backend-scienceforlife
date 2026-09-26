@@ -1,5 +1,6 @@
 const fs = require('fs/promises');
 const pool = require('../config/database');
+const { serverError } = require('../utils/httpError');
 
 const parseBoolean = (value, fallback = true) => {
   if (value === undefined) return fallback;
@@ -50,7 +51,7 @@ const getTeam = async (req, res) => {
       })),
     });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -66,7 +67,7 @@ const createCategory = async (req, res) => {
     const [rows] = await pool.execute('SELECT * FROM team_categories WHERE id = ?', [result.insertId]);
     res.status(201).json({ category: rows[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -85,7 +86,7 @@ const updateCategory = async (req, res) => {
     const [updated] = await pool.execute('SELECT * FROM team_categories WHERE id = ?', [req.params.id]);
     res.json({ category: updated[0] });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -95,7 +96,7 @@ const deleteCategory = async (req, res) => {
     if (!result.affectedRows) return res.status(404).json({ message: 'Kategori tidak ditemukan' });
     res.json({ message: 'Kategori berhasil dihapus' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
@@ -123,7 +124,8 @@ const createMember = async (req, res) => {
     res.status(201).json({ member: rows[0] });
   } catch (error) {
     await removeUpload(req.file);
-    res.status(error.message.includes('gambar') ? 400 : 500).json({ message: error.message.includes('gambar') ? error.message : 'Server error', error: error.message.includes('gambar') ? undefined : error.message });
+    if (!error.message.includes('gambar')) return serverError(res, error);
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -157,7 +159,8 @@ const updateMember = async (req, res) => {
     res.json({ member: updated[0] });
   } catch (error) {
     await removeUpload(req.file);
-    res.status(error.message.includes('gambar') ? 400 : 500).json({ message: error.message.includes('gambar') ? error.message : 'Server error', error: error.message.includes('gambar') ? undefined : error.message });
+    if (!error.message.includes('gambar')) return serverError(res, error);
+    res.status(400).json({ message: error.message });
   }
 };
 
@@ -167,7 +170,7 @@ const deleteMember = async (req, res) => {
     if (!result.affectedRows) return res.status(404).json({ message: 'Anggota tidak ditemukan' });
     res.json({ message: 'Anggota berhasil dihapus' });
   } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    serverError(res, error);
   }
 };
 
