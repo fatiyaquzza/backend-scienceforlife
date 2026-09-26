@@ -7,6 +7,12 @@ if (process.env.NODE_ENV !== "production") {
 const pool = require("./config/database");
 const { apiCatalog, totalEndpointCount } = require("./docs/apiCatalog");
 const { classifyError } = require("./utils/httpError");
+const { assertJwtSecretUsable } = require("./utils/jwtSecret");
+
+// Dicek sebelum apa pun dilayani. JWT_SECRET yang lemah berarti siapa pun bisa
+// menandatangani token dengan role admin, jadi lebih baik aplikasi berhenti
+// sekarang dengan pesan jelas daripada diam-diam menerima token palsu.
+assertJwtSecretUsable(process.env.NODE_ENV, process.env.JWT_SECRET);
 
 const app = express();
 const startedAt = Date.now();

@@ -4,7 +4,15 @@
 
 .env
 
-uploads/
+# Isi uploads adalah konten milik pengguna (PDF materi, gambar modul, foto
+# tim) dan tidak boleh masuk repo. Pola `uploads/` saja tidak cukup karena git
+# tidak pernah menuruni direktori yang di-ignore, sehingga negasi di dalamnya
+# jadi tidak berfungsi. Karena itu polanya `uploads/**` + negasi per-file.
+#
+# .gitkeep sengaja tetap dilacak: multer menulis ke subdirektori yang harus
+# sudah ada, jadi clone baru akan gagal kalau strukturnya hilang.
+uploads/**
+!uploads/**/.gitkeep
 
 # Runtime artifacts
 console.log

@@ -40,10 +40,21 @@ const ADMIN_NAME = process.env.ADMIN_NAME || "Admin Ilmana";
 
 const args = new Set(process.argv.slice(2));
 const GENERATE = args.has("--generate");
-// Memberi ADMIN_PASSWORD secara eksplisit dianggap bermaksud merotasi. Kalau
-// tidak, nilainya akan diabaikan diam-diam dan admin tetap memakai password
-// lama tanpa Whoever mengira password baru sudah aktif.
-const RESET_PASSWORD = args.has("--reset-password") || GENERATE || Boolean(process.env.ADMIN_PASSWORD);
+// Rotasi HANYA boleh terjadi karena flag eksplisit. Sebelumnya ADMIN_PASSWORD
+// yang ada di .env sudah cukup untuk memicu rotasi, padahal orang yang
+// menjalankan `npm run seed:admin` untuk memastikan admin siap tidak sedang
+// bermaksud mengubah password. Produksi sudah punya admin dengan password
+// yang diketahui pemiliknya, jadi rotasi diam-diam di sana berarti admin
+// terkunci dari panelnya sendiri.
+const RESET_PASSWORD = args.has("--reset-password") || GENERATE;
+
+// Kalau ADMIN_PASSWORD diisi tapi flag rotasi tidak diberikan, jangan diamkan.
+if (!RESET_PASSWORD && process.env.ADMIN_PASSWORD) {
+  console.warn(
+    "ADMIN_PASSWORD diabaikan: rotasi hanya jalan bila flag --reset-password " +
+      "atau --generate diberikan. Password admin yang ada tidak diubah.",
+  );
+}
 
 // Password yang pernah ditulis di berkas ini sebelumnya. Menolaknya mencegah
 // skrip diam-diam mengembalikan admin ke password lemah yang sudah bocor.
